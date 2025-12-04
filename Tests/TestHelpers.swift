@@ -22,7 +22,7 @@
 //  THE SOFTWARE.
 //
 
-import Alamofire
+@testable import Alamofire
 import Foundation
 
 extension String {
@@ -326,16 +326,16 @@ extension Endpoint: URLConvertible {
 final class EndpointSequence: URLRequestConvertible {
     enum Error: Swift.Error { case noRemainingEndpoints }
 
-    private var remainingEndpoints: [Endpoint]
+    private let remainingEndpoints: Protected<[Endpoint]>
 
     init(endpoints: [Endpoint]) {
-        remainingEndpoints = endpoints
+        remainingEndpoints = .init(endpoints)
     }
 
     func asURLRequest() throws -> URLRequest {
-        guard !remainingEndpoints.isEmpty else { throw Error.noRemainingEndpoints }
+        guard !remainingEndpoints.value.isEmpty else { throw Error.noRemainingEndpoints }
 
-        return try remainingEndpoints.removeFirst().asURLRequest()
+        return try remainingEndpoints.write { $0.removeFirst() }.asURLRequest()
     }
 }
 
@@ -361,12 +361,12 @@ extension Session {
                 requestModifier: requestModifier)
     }
 
-    func request<Parameters: Encodable>(_ endpoint: Endpoint,
-                                        parameters: Parameters? = nil,
-                                        encoder: any ParameterEncoder = URLEncodedFormParameterEncoder.default,
-                                        headers: HTTPHeaders? = nil,
-                                        interceptor: (any RequestInterceptor)? = nil,
-                                        requestModifier: RequestModifier? = nil) -> DataRequest {
+    func request<Parameters: Encodable & Sendable>(_ endpoint: Endpoint,
+                                                   parameters: Parameters? = nil,
+                                                   encoder: any ParameterEncoder = URLEncodedFormParameterEncoder.default,
+                                                   headers: HTTPHeaders? = nil,
+                                                   interceptor: (any RequestInterceptor)? = nil,
+                                                   requestModifier: RequestModifier? = nil) -> DataRequest {
         request(endpoint as (any URLConvertible),
                 method: endpoint.method,
                 parameters: parameters,
@@ -401,13 +401,13 @@ extension Session {
                       interceptor: interceptor)
     }
 
-    func download<Parameters: Encodable>(_ endpoint: Endpoint,
-                                         parameters: Parameters? = nil,
-                                         encoder: any ParameterEncoder = URLEncodedFormParameterEncoder.default,
-                                         headers: HTTPHeaders? = nil,
-                                         interceptor: (any RequestInterceptor)? = nil,
-                                         requestModifier: RequestModifier? = nil,
-                                         to destination: DownloadRequest.Destination? = nil) -> DownloadRequest {
+    func download<Parameters: Encodable & Sendable>(_ endpoint: Endpoint,
+                                                    parameters: Parameters? = nil,
+                                                    encoder: any ParameterEncoder = URLEncodedFormParameterEncoder.default,
+                                                    headers: HTTPHeaders? = nil,
+                                                    interceptor: (any RequestInterceptor)? = nil,
+                                                    requestModifier: RequestModifier? = nil,
+                                                    to destination: DownloadRequest.Destination? = nil) -> DownloadRequest {
         download(endpoint as (any URLConvertible),
                  method: endpoint.method,
                  parameters: parameters,
